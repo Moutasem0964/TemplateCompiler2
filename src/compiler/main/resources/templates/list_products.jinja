@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"></meta>
+    <title>Product List</title>
+    <style>
+        .product {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 10px;
+            width: 300px;
+            float: left;
+        }
+        .product img {
+            max-width: 100%;
+        }
+        .price {
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Our Products</h1>
+
+    {% for product in products %}
+        <div class="product">
+            <img src="{{ product.photo }}" alt="{{ product.name }}"></img>
+            <h2>{{ product.name }}</h2>
+            <p class="price">{{ product.price }} $</p>
+            <p>{{ product.details }}</p>
+            <a href="/detail/{{ product.id }}">View Details</a>
+            <a href="/delete/{{ product.id }}">Delete</a>
+        </div>
+    {% endfor %}
+
+    <br clear="all"></br>
+    <a href="/add">Add New Product</a>
+</body>
+</html>
