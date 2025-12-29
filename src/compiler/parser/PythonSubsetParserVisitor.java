@@ -175,11 +175,11 @@ public interface PythonSubsetParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitComp_op(PythonSubsetParser.Comp_opContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link PythonSubsetParser#expr}.
+	 * Visit a parse tree produced by {@link PythonSubsetParser#arith_expr}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitExpr(PythonSubsetParser.ExprContext ctx);
+	T visitArith_expr(PythonSubsetParser.Arith_exprContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link PythonSubsetParser#term}.
 	 * @param ctx the parse tree
@@ -212,6 +212,13 @@ public interface PythonSubsetParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitCallTrailer(PythonSubsetParser.CallTrailerContext ctx);
 	/**
+	 * Visit a parse tree produced by the {@code GenExprTrailer}
+	 * labeled alternative in {@link PythonSubsetParser#trailer}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitGenExprTrailer(PythonSubsetParser.GenExprTrailerContext ctx);
+	/**
 	 * Visit a parse tree produced by the {@code IndexTrailer}
 	 * labeled alternative in {@link PythonSubsetParser#trailer}.
 	 * @param ctx the parse tree
@@ -225,6 +232,12 @@ public interface PythonSubsetParserVisitor<T> extends ParseTreeVisitor<T> {
 	 * @return the visitor result
 	 */
 	T visitAttrTrailer(PythonSubsetParser.AttrTrailerContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link PythonSubsetParser#subscript}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitSubscript(PythonSubsetParser.SubscriptContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code ParenAtom}
 	 * labeled alternative in {@link PythonSubsetParser#atom}.
@@ -289,17 +302,17 @@ public interface PythonSubsetParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitNoneAtom(PythonSubsetParser.NoneAtomContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link PythonSubsetParser#testlist}.
+	 * Visit a parse tree produced by {@link PythonSubsetParser#testlist_comp}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitTestlist(PythonSubsetParser.TestlistContext ctx);
+	T visitTestlist_comp(PythonSubsetParser.Testlist_compContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link PythonSubsetParser#dictorsetmaker}.
+	 * Visit a parse tree produced by {@link PythonSubsetParser#genexpr_inner}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitDictorsetmaker(PythonSubsetParser.DictorsetmakerContext ctx);
+	T visitGenexpr_inner(PythonSubsetParser.Genexpr_innerContext ctx);
 	/**
 	 * Visit a parse tree produced by {@link PythonSubsetParser#comp_for}.
 	 * @param ctx the parse tree
@@ -307,11 +320,23 @@ public interface PythonSubsetParserVisitor<T> extends ParseTreeVisitor<T> {
 	 */
 	T visitComp_for(PythonSubsetParser.Comp_forContext ctx);
 	/**
-	 * Visit a parse tree produced by {@link PythonSubsetParser#arguments}.
+	 * Visit a parse tree produced by {@link PythonSubsetParser#dictorsetmaker}.
 	 * @param ctx the parse tree
 	 * @return the visitor result
 	 */
-	T visitArguments(PythonSubsetParser.ArgumentsContext ctx);
+	T visitDictorsetmaker(PythonSubsetParser.DictorsetmakerContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link PythonSubsetParser#dict_item}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitDict_item(PythonSubsetParser.Dict_itemContext ctx);
+	/**
+	 * Visit a parse tree produced by {@link PythonSubsetParser#arglist}.
+	 * @param ctx the parse tree
+	 * @return the visitor result
+	 */
+	T visitArglist(PythonSubsetParser.ArglistContext ctx);
 	/**
 	 * Visit a parse tree produced by the {@code KeywordArgument}
 	 * labeled alternative in {@link PythonSubsetParser#argument}.

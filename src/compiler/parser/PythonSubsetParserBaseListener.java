@@ -343,13 +343,13 @@ public class PythonSubsetParserBaseListener implements PythonSubsetParserListene
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterExpr(PythonSubsetParser.ExprContext ctx) { }
+	@Override public void enterArith_expr(PythonSubsetParser.Arith_exprContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitExpr(PythonSubsetParser.ExprContext ctx) { }
+	@Override public void exitArith_expr(PythonSubsetParser.Arith_exprContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -415,6 +415,18 @@ public class PythonSubsetParserBaseListener implements PythonSubsetParserListene
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterGenExprTrailer(PythonSubsetParser.GenExprTrailerContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitGenExprTrailer(PythonSubsetParser.GenExprTrailerContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterIndexTrailer(PythonSubsetParser.IndexTrailerContext ctx) { }
 	/**
 	 * {@inheritDoc}
@@ -434,6 +446,18 @@ public class PythonSubsetParserBaseListener implements PythonSubsetParserListene
 	 * <p>The default implementation does nothing.</p>
 	 */
 	@Override public void exitAttrTrailer(PythonSubsetParser.AttrTrailerContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterSubscript(PythonSubsetParser.SubscriptContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitSubscript(PythonSubsetParser.SubscriptContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -547,25 +571,25 @@ public class PythonSubsetParserBaseListener implements PythonSubsetParserListene
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterTestlist(PythonSubsetParser.TestlistContext ctx) { }
+	@Override public void enterTestlist_comp(PythonSubsetParser.Testlist_compContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitTestlist(PythonSubsetParser.TestlistContext ctx) { }
+	@Override public void exitTestlist_comp(PythonSubsetParser.Testlist_compContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterDictorsetmaker(PythonSubsetParser.DictorsetmakerContext ctx) { }
+	@Override public void enterGenexpr_inner(PythonSubsetParser.Genexpr_innerContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitDictorsetmaker(PythonSubsetParser.DictorsetmakerContext ctx) { }
+	@Override public void exitGenexpr_inner(PythonSubsetParser.Genexpr_innerContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
@@ -583,13 +607,37 @@ public class PythonSubsetParserBaseListener implements PythonSubsetParserListene
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterArguments(PythonSubsetParser.ArgumentsContext ctx) { }
+	@Override public void enterDictorsetmaker(PythonSubsetParser.DictorsetmakerContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitArguments(PythonSubsetParser.ArgumentsContext ctx) { }
+	@Override public void exitDictorsetmaker(PythonSubsetParser.DictorsetmakerContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterDict_item(PythonSubsetParser.Dict_itemContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitDict_item(PythonSubsetParser.Dict_itemContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterArglist(PythonSubsetParser.ArglistContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitArglist(PythonSubsetParser.ArglistContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *

@@ -2,10 +2,12 @@ package compiler.main;
 
 import compiler.ast.core.AstNode;
 import compiler.ast.visitors.PrintVisitor;
+import compiler.lexer.PythonIndentingLexer;
 import compiler.visitors.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.Token;
 import compiler.parser.*;
 
 import java.io.IOException;
@@ -57,14 +59,16 @@ public class TestMain {
     private static void parsePythonFile(String filename) throws IOException {
         System.out.println("\n--- PYTHON AST ---\n");
 
-        // Create lexer and parser
+        // Create lexer with indentation handling
         CharStream input = CharStreams.fromFileName(filename);
-        compiler.parser.PythonSubsetLexer lexer = new compiler.parser.PythonSubsetLexer(input);
+        PythonSubsetLexer baseLexer = new PythonSubsetLexer(input);
+        PythonIndentingLexer lexer = new PythonIndentingLexer(baseLexer);
+
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        compiler.parser.PythonSubsetParser parser = new compiler.parser.PythonSubsetParser(tokens);
+        PythonSubsetParser parser = new PythonSubsetParser(tokens);
 
         // Parse the file
-        compiler.parser.PythonSubsetParser.File_inputContext parseTree = parser.file_input();
+        PythonSubsetParser.File_inputContext parseTree = parser.file_input();
 
         // Check for syntax errors
         if (parser.getNumberOfSyntaxErrors() > 0) {
@@ -76,19 +80,13 @@ public class TestMain {
         PythonAstBuilder astBuilder = new PythonAstBuilder();
         AstNode ast = astBuilder.visit(parseTree);
 
-        // Print AST
+        // Print AST using the visitor pattern
         if (ast != null) {
             PrintVisitor printer = new PrintVisitor();
             printer.printTree(ast);
         } else {
             System.err.println("AST is null!");
         }
-
-        // TODO: Build symbol table
-        // System.out.println("\n--- SYMBOL TABLE ---\n");
-        // SymbolTableVisitor symTableVisitor = new SymbolTableVisitor();
-        // ast.accept(symTableVisitor);
-        // symTableVisitor.printSymbolTable();
     }
 
     private static void parseTemplateFile(String filename) throws IOException {
@@ -96,12 +94,12 @@ public class TestMain {
 
         // Create lexer and parser
         CharStream input = CharStreams.fromFileName(filename);
-        compiler.parser.TemplateLexer lexer = new compiler.parser.TemplateLexer(input);
+        TemplateLexer lexer = new TemplateLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        compiler.parser.TemplateParser parser = new compiler.parser.TemplateParser(tokens);
+        TemplateParser parser = new TemplateParser(tokens);
 
         // Parse the file
-        compiler.parser.TemplateParser.TemplateContext parseTree = parser.template();
+        TemplateParser.TemplateContext parseTree = parser.template();
 
         // Check for syntax errors
         if (parser.getNumberOfSyntaxErrors() > 0) {
@@ -129,10 +127,10 @@ public class TestMain {
         CharStream input = CharStreams.fromFileName(filename);
         CSSLexer lexer = new CSSLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        compiler.parser.CSSParser parser = new compiler.parser.CSSParser(tokens);
+        CSSParser parser = new CSSParser(tokens);
 
         // Parse the file
-        compiler.parser.CSSParser.StylesheetContext parseTree = parser.stylesheet();
+        CSSParser.StylesheetContext parseTree = parser.stylesheet();
 
         // Check for syntax errors
         if (parser.getNumberOfSyntaxErrors() > 0) {

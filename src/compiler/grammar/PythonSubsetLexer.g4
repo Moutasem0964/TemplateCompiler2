@@ -55,10 +55,13 @@ COLON: ':';
 DOT: '.';
 ARROW: '->';
 
-// String literals - handle any string content
+// Decorator - just the @ symbol
+DECORATOR: '@';
+
+// String literals
 STRING
-    : '"' ( ~["\\\r\n] | '\\' . | '\\"' )* '"'
-    | '\'' ( ~['\\\r\n] | '\\' . | '\\\'' )* '\''
+    : '"' ( ~["\\\r\n] | '\\' . )* '"'
+    | '\'' ( ~['\\\r\n] | '\\' . )* '\''
     ;
 
 // Numbers
@@ -69,9 +72,6 @@ NUMBER
 // Identifiers - must come after keywords
 NAME: [a-zA-Z_][a-zA-Z0-9_]*;
 
-// Decorator
-DECORATOR: '@' NAME;
-
 // Newlines - important for Python!
 NEWLINE: ('\r'? '\n' | '\r');
 
@@ -79,7 +79,7 @@ NEWLINE: ('\r'? '\n' | '\r');
 INDENT: '<<<INDENT>>>';
 DEDENT: '<<<DEDENT>>>';
 
-// Whitespace
+// Whitespace - send to hidden channel (but we read position for indentation)
 WS: [ \t]+ -> channel(HIDDEN);
 
 // Comments

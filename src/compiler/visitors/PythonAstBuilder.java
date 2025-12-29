@@ -9,12 +9,7 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
 
     @Override
     public AstNode visitFile_input(File_inputContext ctx) {
-        AstNode root = new AstNode("PythonFile", 1) {
-            @Override
-            public <R> R accept(compiler.ast.visitors.AstVisitor<R> visitor) {
-                return null;
-            }
-        };
+        PythonFileNode root = new PythonFileNode(1);
 
         for (StmtContext stmt : ctx.stmt()) {
             AstNode stmtNode = visit(stmt);
@@ -26,7 +21,59 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         return root;
     }
 
-    // ===== Statements =====
+    // ===== Statement Delegation =====
+
+    @Override
+    public AstNode visitStmt(StmtContext ctx) {
+        if (ctx.simple_stmt() != null) {
+            return visit(ctx.simple_stmt());
+        } else if (ctx.compound_stmt() != null) {
+            return visit(ctx.compound_stmt());
+        }
+        return null;
+    }
+
+    @Override
+    public AstNode visitSimple_stmt(Simple_stmtContext ctx) {
+        return visit(ctx.small_stmt());
+    }
+
+    @Override
+    public AstNode visitSmall_stmt(Small_stmtContext ctx) {
+        if (ctx.assign_stmt() != null) {
+            return visit(ctx.assign_stmt());
+        } else if (ctx.return_stmt() != null) {
+            return visit(ctx.return_stmt());
+        } else if (ctx.global_stmt() != null) {
+            return visit(ctx.global_stmt());
+        } else if (ctx.import_stmt() != null) {
+            return visit(ctx.import_stmt());
+        } else if (ctx.from_import_stmt() != null) {
+            return visit(ctx.from_import_stmt());
+        } else if (ctx.expr_stmt() != null) {
+            return visit(ctx.expr_stmt());
+        }
+        return null;
+    }
+
+    @Override
+    public AstNode visitCompound_stmt(Compound_stmtContext ctx) {
+        if (ctx.function_def() != null) {
+            return visit(ctx.function_def());
+        } else if (ctx.if_stmt() != null) {
+            return visit(ctx.if_stmt());
+        } else if (ctx.for_stmt() != null) {
+            return visit(ctx.for_stmt());
+        }
+        return null;
+    }
+
+    @Override
+    public AstNode visitExpr_stmt(Expr_stmtContext ctx) {
+        return visit(ctx.test());
+    }
+
+    // ===== Function Definition =====
 
     @Override
     public AstNode visitFunction_def(Function_defContext ctx) {
@@ -35,18 +82,57 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
 
         DefNode defNode = new DefNode(funcName, line);
 
+        // Handle decorators
+        for (DecoratorContext dec : ctx.decorator()) {
+            AstNode decoratorNode = visitDecorator(dec);
+            if (decoratorNode != null) {
+                defNode.addChild(decoratorNode);
+            }
+        }
+
+        // Handle parameters
         if (ctx.parameters() != null) {
             for (ParameterContext param : ctx.parameters().parameter()) {
                 defNode.addParam(param.NAME().getText());
             }
         }
 
+        // Handle body
         AstNode body = visit(ctx.suite());
         if (body != null) {
             defNode.addChild(body);
         }
 
         return defNode;
+    }
+
+    @Override
+    public AstNode visitDecorator(DecoratorContext ctx) {
+        int line = ctx.getStart().getLine();
+
+        // Build decorator name from dotted_name
+        StringBuilder decoratorName = new StringBuilder();
+        for (int i = 0; i < ctx.dotted_name().NAME().size(); i++) {
+            if (i > 0) decoratorName.append(".");
+            decoratorName.append(ctx.dotted_name().NAME(i).getText());
+        }
+
+        DecoratorNode decoratorNode = new DecoratorNode(line);
+        decoratorNode.addChild(new NameNode(decoratorName.toString(), line));
+
+        // Handle decorator arguments
+        if (ctx.arglist() != null) {
+            if (ctx.arglist().argument() != null) {
+                for (ArgumentContext arg : ctx.arglist().argument()) {
+                    AstNode argNode = visit(arg);
+                    if (argNode != null) {
+                        decoratorNode.addChild(argNode);
+                    }
+                }
+            }
+        }
+
+        return decoratorNode;
     }
 
     @Override
@@ -90,36 +176,22 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
         IfNode ifNode = new IfNode(line);
 
-        // Main if condition
-        AstNode condition = visit(ctx.test(0));
-        if (condition != null) {
-            ifNode.addChild(condition);
-        }
-
-        // Main if body
-        AstNode thenBlock = visit(ctx.suite(0));
-        if (thenBlock != null) {
-            ifNode.addChild(thenBlock);
-        }
-
-        // Elif blocks
-        for (int i = 1; i < ctx.test().size(); i++) {
-            AstNode elifCond = visit(ctx.test(i));
-            if (elifCond != null) {
-                ifNode.addChild(elifCond);
+        for (int i = 0; i < ctx.test().size(); i++) {
+            AstNode condition = visit(ctx.test(i));
+            if (condition != null) {
+                ifNode.addChild(condition);
             }
-            AstNode elifBody = visit(ctx.suite(i));
-            if (elifBody != null) {
-                ifNode.addChild(elifBody);
+
+            AstNode body = visit(ctx.suite(i));
+            if (body != null) {
+                ifNode.addChild(body);
             }
         }
 
-        // Else block
         if (ctx.ELSE() != null) {
-            int elseIndex = ctx.suite().size() - 1;
-            AstNode elseBlock = visit(ctx.suite(elseIndex));
-            if (elseBlock != null) {
-                ifNode.addChild(elseBlock);
+            AstNode elseBody = visit(ctx.suite(ctx.suite().size() - 1));
+            if (elseBody != null) {
+                ifNode.addChild(elseBody);
             }
         }
 
@@ -129,12 +201,7 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
     @Override
     public AstNode visitReturn_stmt(Return_stmtContext ctx) {
         int line = ctx.getStart().getLine();
-        AstNode returnNode = new AstNode("Return", line) {
-            @Override
-            public <R> R accept(compiler.ast.visitors.AstVisitor<R> visitor) {
-                return null;
-            }
-        };
+        ReturnNode returnNode = new ReturnNode(line);
 
         if (ctx.test() != null) {
             AstNode value = visit(ctx.test());
@@ -147,16 +214,69 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
     }
 
     @Override
+    public AstNode visitGlobal_stmt(Global_stmtContext ctx) {
+        int line = ctx.getStart().getLine();
+        GlobalNode globalNode = new GlobalNode(line);
+
+        for (var name : ctx.NAME()) {
+            globalNode.addChild(new NameNode(name.getText(), line));
+        }
+
+        return globalNode;
+    }
+
+    @Override
+    public AstNode visitImport_stmt(Import_stmtContext ctx) {
+        int line = ctx.getStart().getLine();
+        ImportNode importNode = new ImportNode(line);
+
+        // Build module name
+        StringBuilder moduleName = new StringBuilder();
+        for (int i = 0; i < ctx.dotted_name().NAME().size(); i++) {
+            if (i > 0) moduleName.append(".");
+            moduleName.append(ctx.dotted_name().NAME(i).getText());
+        }
+        importNode.addChild(new NameNode(moduleName.toString(), line));
+
+        // Handle alias
+        if (ctx.AS() != null) {
+            importNode.addChild(new NameNode(ctx.NAME().getText(), line));
+        }
+
+        return importNode;
+    }
+
+    @Override
+    public AstNode visitFrom_import_stmt(From_import_stmtContext ctx) {
+        int line = ctx.getStart().getLine();
+        FromImportNode fromImportNode = new FromImportNode(line);
+
+        // Build module name
+        StringBuilder moduleName = new StringBuilder();
+        for (int i = 0; i < ctx.dotted_name().NAME().size(); i++) {
+            if (i > 0) moduleName.append(".");
+            moduleName.append(ctx.dotted_name().NAME(i).getText());
+        }
+        fromImportNode.addChild(new NameNode(moduleName.toString(), line));
+
+        // Handle imports
+        if (ctx.STAR() != null) {
+            fromImportNode.addChild(new NameNode("*", line));
+        } else if (ctx.import_as_names() != null) {
+            for (Import_as_nameContext importName : ctx.import_as_names().import_as_name()) {
+                fromImportNode.addChild(new NameNode(importName.NAME(0).getText(), line));
+            }
+        }
+
+        return fromImportNode;
+    }
+
+    @Override
     public AstNode visitSuite(SuiteContext ctx) {
         if (ctx.simple_stmt() != null) {
             return visit(ctx.simple_stmt());
         } else {
-            AstNode suite = new AstNode("Suite", ctx.getStart().getLine()) {
-                @Override
-                public <R> R accept(compiler.ast.visitors.AstVisitor<R> visitor) {
-                    return null;
-                }
-            };
+            SuiteNode suite = new SuiteNode(ctx.getStart().getLine());
 
             for (StmtContext stmt : ctx.stmt()) {
                 AstNode stmtNode = visit(stmt);
@@ -169,7 +289,174 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         }
     }
 
-    // ===== Expressions =====
+    // ===== Expression Chain Delegation =====
+
+    @Override
+    public AstNode visitTest(TestContext ctx) {
+        return visit(ctx.or_test());
+    }
+
+    @Override
+    public AstNode visitOr_test(Or_testContext ctx) {
+        if (ctx.and_test().size() == 1) {
+            return visit(ctx.and_test(0));
+        }
+
+        int line = ctx.getStart().getLine();
+        BinOpNode binOp = new BinOpNode("or", line);
+
+        AstNode left = visit(ctx.and_test(0));
+        if (left != null) binOp.addChild(left);
+
+        AstNode right = visit(ctx.and_test(1));
+        if (right != null) binOp.addChild(right);
+
+        return binOp;
+    }
+
+    @Override
+    public AstNode visitAnd_test(And_testContext ctx) {
+        if (ctx.not_test().size() == 1) {
+            return visit(ctx.not_test(0));
+        }
+
+        int line = ctx.getStart().getLine();
+        BinOpNode binOp = new BinOpNode("and", line);
+
+        AstNode left = visit(ctx.not_test(0));
+        if (left != null) binOp.addChild(left);
+
+        AstNode right = visit(ctx.not_test(1));
+        if (right != null) binOp.addChild(right);
+
+        return binOp;
+    }
+
+    @Override
+    public AstNode visitNot_test(Not_testContext ctx) {
+        if (ctx.NOT() != null) {
+            int line = ctx.getStart().getLine();
+            NotNode notNode = new NotNode(line);
+            AstNode operand = visit(ctx.not_test());
+            if (operand != null) notNode.addChild(operand);
+            return notNode;
+        }
+        return visit(ctx.comparison());
+    }
+
+    @Override
+    public AstNode visitComparison(ComparisonContext ctx) {
+        if (ctx.comp_op() == null || ctx.comp_op().isEmpty()) {
+            return visit(ctx.arith_expr(0));
+        }
+
+        int line = ctx.getStart().getLine();
+        BinOpNode binOpNode = new BinOpNode(ctx.comp_op(0).getText(), line);
+
+        AstNode left = visit(ctx.arith_expr(0));
+        if (left != null) {
+            binOpNode.addChild(left);
+        }
+
+        AstNode right = visit(ctx.arith_expr(1));
+        if (right != null) {
+            binOpNode.addChild(right);
+        }
+
+        return binOpNode;
+    }
+
+    @Override
+    public AstNode visitArith_expr(Arith_exprContext ctx) {
+        if (ctx.term().size() == 1) {
+            return visit(ctx.term(0));
+        }
+
+        int line = ctx.getStart().getLine();
+        String op = ctx.PLUS() != null && !ctx.PLUS().isEmpty() ? "+" : "-";
+        BinOpNode binOpNode = new BinOpNode(op, line);
+
+        AstNode left = visit(ctx.term(0));
+        if (left != null) {
+            binOpNode.addChild(left);
+        }
+
+        AstNode right = visit(ctx.term(1));
+        if (right != null) {
+            binOpNode.addChild(right);
+        }
+
+        return binOpNode;
+    }
+
+    @Override
+    public AstNode visitTerm(TermContext ctx) {
+        if (ctx.factor().size() == 1) {
+            return visit(ctx.factor(0));
+        }
+
+        int line = ctx.getStart().getLine();
+        String op = "*";
+        if (ctx.SLASH() != null && !ctx.SLASH().isEmpty()) op = "/";
+        else if (ctx.PERCENT() != null && !ctx.PERCENT().isEmpty()) op = "%";
+        else if (ctx.DOUBLESLASH() != null && !ctx.DOUBLESLASH().isEmpty()) op = "//";
+
+        BinOpNode binOpNode = new BinOpNode(op, line);
+
+        AstNode left = visit(ctx.factor(0));
+        if (left != null) {
+            binOpNode.addChild(left);
+        }
+
+        AstNode right = visit(ctx.factor(1));
+        if (right != null) {
+            binOpNode.addChild(right);
+        }
+
+        return binOpNode;
+    }
+
+    @Override
+    public AstNode visitFactor(FactorContext ctx) {
+        if (ctx.factor() != null) {
+            // Unary plus or minus
+            int line = ctx.getStart().getLine();
+            String op = ctx.PLUS() != null ? "+" : "-";
+            UnaryOpNode unaryNode = new UnaryOpNode(op, line);
+            AstNode operand = visit(ctx.factor());
+            if (operand != null) {
+                unaryNode.addChild(operand);
+            }
+            return unaryNode;
+        }
+        return visit(ctx.power());
+    }
+
+    @Override
+    public AstNode visitPower(PowerContext ctx) {
+        AstNode base = visit(ctx.atom_expr());
+
+        if (ctx.factor() != null) {
+            // Power operation: base ** exponent
+            int line = ctx.getStart().getLine();
+            BinOpNode powerNode = new BinOpNode("**", line);
+            powerNode.addChild(base);
+            AstNode exponent = visit(ctx.factor());
+            if (exponent != null) {
+                powerNode.addChild(exponent);
+            }
+            return powerNode;
+        }
+
+        return base;
+    }
+
+    @Override
+    public AstNode visitSubscript(SubscriptContext ctx) {
+        return visit(ctx.test());
+    }
+
+    // ===== Atoms =====
 
     @Override
     public AstNode visitNameAtom(NameAtomContext ctx) {
@@ -214,37 +501,193 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
     }
 
     @Override
-    public AstNode visitCallTrailer(CallTrailerContext ctx) {
-        // This is handled in atom_expr
-        return visitChildren(ctx);
+    public AstNode visitParenAtom(ParenAtomContext ctx) {
+        int line = ctx.getStart().getLine();
+
+        if (ctx.testlist_comp() == null) {
+            // Empty parentheses - empty tuple
+            return new TupleNode(line);
+        }
+
+        Testlist_compContext testlistComp = ctx.testlist_comp();
+
+        // Check if it's a generator expression
+        if (testlistComp.comp_for() != null) {
+            GeneratorExprNode genNode = new GeneratorExprNode(line);
+
+            // Expression being generated
+            AstNode expr = visit(testlistComp.test(0));
+            if (expr != null) {
+                genNode.addChild(expr);
+            }
+
+            // Loop variable
+            Comp_forContext compFor = testlistComp.comp_for();
+            genNode.addChild(new NameNode(compFor.NAME().getText(), line));
+
+            // Iterable
+            AstNode iter = visit(compFor.or_test(0));
+            if (iter != null) {
+                genNode.addChild(iter);
+            }
+
+            // Condition (if present)
+            if (compFor.IF() != null && compFor.or_test().size() > 1) {
+                AstNode cond = visit(compFor.or_test(1));
+                if (cond != null) {
+                    genNode.addChild(cond);
+                }
+            }
+
+            return genNode;
+        }
+
+        // Regular parenthesized expression or tuple
+        if (testlistComp.test().size() == 1 && testlistComp.COMMA().isEmpty()) {
+            // Single expression without comma - just parentheses for grouping
+            return visit(testlistComp.test(0));
+        }
+
+        // Tuple
+        TupleNode tupleNode = new TupleNode(line);
+        for (TestContext test : testlistComp.test()) {
+            AstNode elem = visit(test);
+            if (elem != null) {
+                tupleNode.addChild(elem);
+            }
+        }
+        return tupleNode;
     }
+
+    @Override
+    public AstNode visitListAtom(ListAtomContext ctx) {
+        int line = ctx.getStart().getLine();
+
+        if (ctx.testlist_comp() == null) {
+            // Empty list
+            return new ListNode(line);
+        }
+
+        Testlist_compContext testlistComp = ctx.testlist_comp();
+
+        // Check if it's a list comprehension
+        if (testlistComp.comp_for() != null) {
+            ListCompNode compNode = new ListCompNode(line);
+
+            // Expression
+            AstNode expr = visit(testlistComp.test(0));
+            if (expr != null) {
+                compNode.addChild(expr);
+            }
+
+            // Loop var
+            Comp_forContext compFor = testlistComp.comp_for();
+            compNode.addChild(new NameNode(compFor.NAME().getText(), line));
+
+            // Iterable
+            AstNode iter = visit(compFor.or_test(0));
+            if (iter != null) {
+                compNode.addChild(iter);
+            }
+
+            // Condition if exists
+            if (compFor.IF() != null && compFor.or_test().size() > 1) {
+                AstNode cond = visit(compFor.or_test(1));
+                if (cond != null) {
+                    compNode.addChild(cond);
+                }
+            }
+
+            return compNode;
+        }
+
+        // Regular list
+        ListNode listNode = new ListNode(line);
+
+        for (TestContext test : testlistComp.test()) {
+            AstNode elem = visit(test);
+            if (elem != null) {
+                listNode.addChild(elem);
+            }
+        }
+
+        return listNode;
+    }
+
+    @Override
+    public AstNode visitDictAtom(DictAtomContext ctx) {
+        int line = ctx.getStart().getLine();
+        DictNode dictNode = new DictNode(line);
+
+        if (ctx.dictorsetmaker() != null && ctx.dictorsetmaker().dict_item() != null) {
+            for (Dict_itemContext item : ctx.dictorsetmaker().dict_item()) {
+                // Key
+                if (item.STRING() != null) {
+                    String key = item.STRING().getText();
+                    key = key.substring(1, key.length() - 1);
+                    dictNode.addChild(new StringNode(key, line));
+                } else if (item.NAME() != null) {
+                    dictNode.addChild(new NameNode(item.NAME().getText(), line));
+                }
+
+                // Value
+                AstNode value = visit(item.test());
+                if (value != null) {
+                    dictNode.addChild(value);
+                }
+            }
+        }
+
+        return dictNode;
+    }
+
+    // ===== Trailers (Atom Expression) =====
 
     @Override
     public AstNode visitAtom_expr(Atom_exprContext ctx) {
         int line = ctx.getStart().getLine();
-        AstNode base = visit(ctx.atom());
+        AstNode current = visit(ctx.atom());
 
         if (ctx.trailer() == null || ctx.trailer().isEmpty()) {
-            return base;
+            return current;
         }
 
-        // Process trailers left to right
-        AstNode current = base;
         for (TrailerContext trailer : ctx.trailer()) {
             if (trailer instanceof CallTrailerContext) {
                 CallNode callNode = new CallNode(line);
                 callNode.addChild(current);
 
                 CallTrailerContext call = (CallTrailerContext) trailer;
-                if (call.arguments() != null) {
-                    for (ArgumentContext arg : call.arguments().argument()) {
-                        AstNode argNode = visit(arg);
-                        if (argNode != null) {
-                            callNode.addChild(argNode);
+                if (call.arglist() != null) {
+                    // Check if arglist is a generator expression
+                    if (call.arglist().genexpr_inner() != null) {
+                        AstNode genExpr = visitGenexpr_inner(call.arglist().genexpr_inner());
+                        if (genExpr != null) {
+                            callNode.addChild(genExpr);
+                        }
+                    } else if (call.arglist().argument() != null) {
+                        for (ArgumentContext arg : call.arglist().argument()) {
+                            AstNode argNode = visit(arg);
+                            if (argNode != null) {
+                                callNode.addChild(argNode);
+                            }
                         }
                     }
                 }
                 current = callNode;
+
+            } else if (trailer instanceof GenExprTrailerContext) {
+                // Handle: func(x for x in y if z)
+                CallNode callNode = new CallNode(line);
+                callNode.addChild(current);
+
+                GenExprTrailerContext genTrailer = (GenExprTrailerContext) trailer;
+                AstNode genExpr = visitGenexpr_inner(genTrailer.genexpr_inner());
+                if (genExpr != null) {
+                    callNode.addChild(genExpr);
+                }
+                current = callNode;
+
             } else if (trailer instanceof AttrTrailerContext) {
                 AttrAccessNode attrNode = new AttrAccessNode(line);
                 attrNode.addChild(current);
@@ -252,17 +695,13 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
                 AttrTrailerContext attr = (AttrTrailerContext) trailer;
                 attrNode.addChild(new NameNode(attr.NAME().getText(), line));
                 current = attrNode;
+
             } else if (trailer instanceof IndexTrailerContext) {
-                AstNode subscriptNode = new AstNode("Subscript", line) {
-                    @Override
-                    public <R> R accept(compiler.ast.visitors.AstVisitor<R> visitor) {
-                        return null;
-                    }
-                };
+                SubscriptNode subscriptNode = new SubscriptNode(line);
                 subscriptNode.addChild(current);
 
                 IndexTrailerContext index = (IndexTrailerContext) trailer;
-                AstNode indexExpr = visit(index.test());
+                AstNode indexExpr = visit(index.subscript());
                 if (indexExpr != null) {
                     subscriptNode.addChild(indexExpr);
                 }
@@ -273,130 +712,42 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         return current;
     }
 
-    @Override
-    public AstNode visitComparison(ComparisonContext ctx) {
-        if (ctx.comp_op() == null || ctx.comp_op().isEmpty()) {
-            return visit(ctx.expr(0));
-        }
-
+    // Generator expression helper
+    public AstNode visitGenexpr_inner(Genexpr_innerContext ctx) {
         int line = ctx.getStart().getLine();
-        BinOpNode binOpNode = new BinOpNode(ctx.comp_op(0).getText(), line);
 
-        AstNode left = visit(ctx.expr(0));
-        if (left != null) {
-            binOpNode.addChild(left);
+        GeneratorExprNode genNode = new GeneratorExprNode(line);
+
+        // Expression being generated
+        AstNode expr = visit(ctx.test());
+        if (expr != null) {
+            genNode.addChild(expr);
         }
 
-        AstNode right = visit(ctx.expr(1));
-        if (right != null) {
-            binOpNode.addChild(right);
+        // Comprehension clause
+        Comp_forContext compFor = ctx.comp_for();
+
+        // Loop variable
+        genNode.addChild(new NameNode(compFor.NAME().getText(), line));
+
+        // Iterable
+        AstNode iter = visit(compFor.or_test(0));
+        if (iter != null) {
+            genNode.addChild(iter);
         }
 
-        return binOpNode;
-    }
-
-    @Override
-    public AstNode visitExpr(ExprContext ctx) {
-        if (ctx.term().size() == 1) {
-            return visit(ctx.term(0));
-        }
-
-        int line = ctx.getStart().getLine();
-        String op = ctx.PLUS() != null ? "+" : "-";
-        BinOpNode binOpNode = new BinOpNode(op, line);
-
-        AstNode left = visit(ctx.term(0));
-        if (left != null) {
-            binOpNode.addChild(left);
-        }
-
-        AstNode right = visit(ctx.term(1));
-        if (right != null) {
-            binOpNode.addChild(right);
-        }
-
-        return binOpNode;
-    }
-
-    @Override
-    public AstNode visitTerm(TermContext ctx) {
-        if (ctx.factor().size() == 1) {
-            return visit(ctx.factor(0));
-        }
-
-        int line = ctx.getStart().getLine();
-        String op = "*";
-        if (ctx.SLASH() != null) op = "/";
-        else if (ctx.PERCENT() != null) op = "%";
-        else if (ctx.DOUBLESLASH() != null) op = "//";
-
-        BinOpNode binOpNode = new BinOpNode(op, line);
-
-        AstNode left = visit(ctx.factor(0));
-        if (left != null) {
-            binOpNode.addChild(left);
-        }
-
-        AstNode right = visit(ctx.factor(1));
-        if (right != null) {
-            binOpNode.addChild(right);
-        }
-
-        return binOpNode;
-    }
-
-    @Override
-    public AstNode visitListAtom(ListAtomContext ctx) {
-        int line = ctx.getStart().getLine();
-        AstNode listNode = new AstNode("List", line) {
-            @Override
-            public <R> R accept(compiler.ast.visitors.AstVisitor<R> visitor) {
-                return null;
-            }
-        };
-
-        if (ctx.testlist() != null) {
-            for (TestContext test : ctx.testlist().test()) {
-                AstNode elem = visit(test);
-                if (elem != null) {
-                    listNode.addChild(elem);
-                }
+        // Condition (if present)
+        if (compFor.IF() != null && compFor.or_test().size() > 1) {
+            AstNode cond = visit(compFor.or_test(1));
+            if (cond != null) {
+                genNode.addChild(cond);
             }
         }
 
-        return listNode;
+        return genNode;
     }
 
-    @Override
-    public AstNode visitDictAtom(DictAtomContext ctx) {
-        int line = ctx.getStart().getLine();
-        AstNode dictNode = new AstNode("Dict", line) {
-            @Override
-            public <R> R accept(compiler.ast.visitors.AstVisitor<R> visitor) {
-                return null;
-            }
-        };
-
-        // Simplified - just collect children
-        if (ctx.dictorsetmaker() != null) {
-            for (TestContext test : ctx.dictorsetmaker().test()) {
-                AstNode elem = visit(test);
-                if (elem != null) {
-                    dictNode.addChild(elem);
-                }
-            }
-        }
-
-        return dictNode;
-    }
-
-    @Override
-    public AstNode visitParenAtom(ParenAtomContext ctx) {
-        if (ctx.test() != null) {
-            return visit(ctx.test());
-        }
-        return null;
-    }
+    // ===== Arguments =====
 
     @Override
     public AstNode visitPositionalArgument(PositionalArgumentContext ctx) {
@@ -406,12 +757,7 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
     @Override
     public AstNode visitKeywordArgument(KeywordArgumentContext ctx) {
         int line = ctx.getStart().getLine();
-        AstNode kwNode = new AstNode("KeywordArg", line) {
-            @Override
-            public <R> R accept(compiler.ast.visitors.AstVisitor<R> visitor) {
-                return null;
-            }
-        };
+        KeywordArgNode kwNode = new KeywordArgNode(line);
         kwNode.addChild(new NameNode(ctx.NAME().getText(), line));
         AstNode value = visit(ctx.test());
         if (value != null) {

@@ -1,6 +1,5 @@
 parser grammar PythonSubsetParser;
 
-
 @header {
     package compiler.parser;
 }
@@ -9,7 +8,7 @@ options {
     tokenVocab = PythonSubsetLexer;
 }
 
-// Program - skip empty lines
+// Program
 file_input: (NEWLINE | stmt)* EOF;
 
 // Statements
@@ -23,12 +22,12 @@ simple_stmt
     ;
 
 small_stmt
-    : expr_stmt
-    | assign_stmt
+    : assign_stmt
     | return_stmt
     | global_stmt
     | import_stmt
     | from_import_stmt
+    | expr_stmt
     ;
 
 compound_stmt
@@ -37,20 +36,21 @@ compound_stmt
     | for_stmt
     ;
 
-// Import
+// Import statements
 import_stmt: IMPORT dotted_name (AS NAME)?;
 from_import_stmt: FROM dotted_name IMPORT (STAR | import_as_names);
 import_as_names: import_as_name (COMMA import_as_name)*;
 import_as_name: NAME (AS NAME)?;
 dotted_name: NAME (DOT NAME)*;
 
-// Function definition - decorators can have any arguments
+// Function definition with decorators
 function_def
     : decorator* DEF NAME LPAREN parameters? RPAREN COLON suite
     ;
 
+// Decorator
 decorator
-    : DECORATOR arguments? NEWLINE
+    : DECORATOR dotted_name (LPAREN arglist? RPAREN)? NEWLINE
     ;
 
 parameters: parameter (COMMA parameter)*;
@@ -71,7 +71,11 @@ for_stmt
     ;
 
 // Assignment
-assign_stmt: NAME EQUAL test;
+assign_stmt
+    : NAME EQUAL test
+    | NAME PLUSEQUAL test
+    | NAME MINUSEQUAL test
+    ;
 
 global_stmt: GLOBAL NAME (COMMA NAME)*;
 
@@ -79,7 +83,7 @@ return_stmt: RETURN test?;
 
 expr_stmt: test;
 
-// Test expression (most general)
+// Expressions
 test: or_test;
 
 or_test: and_test (OR and_test)*;
@@ -88,12 +92,11 @@ and_test: not_test (AND not_test)*;
 
 not_test: NOT not_test | comparison;
 
-comparison: expr (comp_op expr)*;
+comparison: arith_expr (comp_op arith_expr)*;
 
 comp_op: LESS | GREATER | EQEQUAL | GREATEREQUAL | LESSEQUAL | NOTEQUAL | IN;
 
-// Expressions with precedence
-expr: term ((PLUS | MINUS) term)*;
+arith_expr: term ((PLUS | MINUS) term)*;
 
 term: factor ((STAR | SLASH | PERCENT | DOUBLESLASH) factor)*;
 
@@ -106,36 +109,53 @@ atom_expr
     ;
 
 trailer
-    : LPAREN arguments? RPAREN    #CallTrailer
-    | LBRACK test RBRACK           #IndexTrailer
-    | DOT NAME                     #AttrTrailer
+    : LPAREN arglist? RPAREN       # CallTrailer
+    | LPAREN genexpr_inner RPAREN  # GenExprTrailer
+    | LBRACK subscript RBRACK      # IndexTrailer
+    | DOT NAME                     # AttrTrailer
     ;
+
+subscript: test;
 
 atom
-    : LPAREN test? RPAREN                          #ParenAtom
-    | LBRACK testlist? RBRACK                      #ListAtom
-    | LBRACE dictorsetmaker? RBRACE                #DictAtom
-    | NAME                                          #NameAtom
-    | NUMBER                                        #NumberAtom
-    | STRING+                                       #StringAtom
-    | TRUE                                          #TrueAtom
-    | FALSE                                         #FalseAtom
-    | NONE                                          #NoneAtom
+    : LPAREN testlist_comp? RPAREN             # ParenAtom
+    | LBRACK testlist_comp? RBRACK             # ListAtom
+    | LBRACE dictorsetmaker? RBRACE            # DictAtom
+    | NAME                                     # NameAtom
+    | NUMBER                                   # NumberAtom
+    | STRING+                                  # StringAtom
+    | TRUE                                     # TrueAtom
+    | FALSE                                    # FalseAtom
+    | NONE                                     # NoneAtom
     ;
 
-testlist: test (COMMA test)*;
+// Test list or comprehension - used for both () and []
+testlist_comp
+    : test comp_for                            // Generator/comprehension
+    | test (COMMA test)* COMMA?                // Tuple/list
+    ;
 
-// Dictionary and list comprehensions
+// Generator expression inside function call: func(x for x in y)
+genexpr_inner: test comp_for;
+
+// Comprehension clause
+comp_for: FOR NAME IN or_test (IF or_test)?;
+
+// Dictionary maker
 dictorsetmaker
-    : (test COLON test | test) (comp_for | (COMMA (test COLON test | test))*)
+    : dict_item (COMMA dict_item)* COMMA?
+    | test (comp_for | (COMMA test)* COMMA?)
     ;
 
-comp_for: FOR NAME IN test (IF test)?;
+dict_item: (STRING | NAME) COLON test;
 
-// Function arguments
-arguments: argument (COMMA argument)*;
+// Function call arguments - now supports generator expressions
+arglist
+    : argument (COMMA argument)* COMMA?
+    | genexpr_inner                            // Allow: func(x for x in y)
+    ;
 
 argument
-    : NAME EQUAL test    #KeywordArgument
-    | test               #PositionalArgument
+    : NAME EQUAL test    # KeywordArgument
+    | test               # PositionalArgument
     ;
