@@ -1,8 +1,6 @@
 digraph AST {
-  rankdir=LR;
-  node [shape=box, fontname="Courier", fontsize=12];
-  nodesep=0.15;
-  ranksep=1.0;
+  rankdir=TB;
+  node [shape=box, fontname="Courier"];
   n1 [label="PythonFileNode\nline 1"];
   n1 -> n2;
   n2 [label="FromImportNode\nline 1"];
