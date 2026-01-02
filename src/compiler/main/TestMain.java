@@ -1,11 +1,11 @@
 package compiler.main;
 
 import compiler.ast.core.AstNode;
+import compiler.ast.visitors.AstDiagramVisitor;
 import compiler.ast.visitors.PrintVisitor;
 import compiler.lexer.PythonIndentingLexer;
 import compiler.symbol.SymbolTableVisitor;
 import compiler.visitors.*;
-
 import compiler.parser.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -69,9 +69,7 @@ public class TestMain {
         }
     }
 
-    // =========================================================
     // ======================= PYTHON ==========================
-    // =========================================================
     private static AstNode parsePythonFile(String filename) throws IOException {
         System.out.println();
 
@@ -94,14 +92,14 @@ public class TestMain {
 
         if (ast != null) {
             new PrintVisitor().printTree(ast);
+            AstDiagramVisitor diagramVisitor = new AstDiagramVisitor();
+            diagramVisitor.generate(ast, "src/compiler/main/output/python_ast.dot");
         }
 
         return ast;
     }
 
-    // =========================================================
     // ====================== TEMPLATE =========================
-    // =========================================================
     private static AstNode parseTemplateFile(String filename) throws IOException {
         System.out.println();
 
@@ -122,14 +120,16 @@ public class TestMain {
 
         if (ast != null) {
             new PrintVisitor().printTree(ast);
+            AstDiagramVisitor diagramVisitor = new AstDiagramVisitor();
+            String name = filename.substring(filename.lastIndexOf('/') + 1)
+                    .replace(".jinja", "");
+            diagramVisitor.generate(ast, "src/compiler/main/output/template_" + name + "_ast.dot");
         }
 
         return ast;
     }
 
-    // =========================================================
     // ========================= CSS ===========================
-    // =========================================================
     private static AstNode parseCSSFile(String filename) throws IOException {
         System.out.println();
 
@@ -150,6 +150,8 @@ public class TestMain {
 
         if (ast != null) {
             new PrintVisitor().printTree(ast);
+            AstDiagramVisitor diagramVisitor = new AstDiagramVisitor();
+            diagramVisitor.generate(ast, "src/compiler/main/output/css_ast.dot");
         }
 
         return ast;

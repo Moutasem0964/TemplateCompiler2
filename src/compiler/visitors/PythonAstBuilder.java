@@ -82,7 +82,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
 
         DefNode defNode = new DefNode(funcName, line);
 
-        // Handle decorators
         for (DecoratorContext dec : ctx.decorator()) {
             AstNode decoratorNode = visitDecorator(dec);
             if (decoratorNode != null) {
@@ -90,14 +89,12 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
             }
         }
 
-        // Handle parameters
         if (ctx.parameters() != null) {
             for (ParameterContext param : ctx.parameters().parameter()) {
                 defNode.addParam(param.NAME().getText());
             }
         }
 
-        // Handle body
         AstNode body = visit(ctx.suite());
         if (body != null) {
             defNode.addChild(body);
@@ -110,7 +107,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
     public AstNode visitDecorator(DecoratorContext ctx) {
         int line = ctx.getStart().getLine();
 
-        // Build decorator name from dotted_name
         StringBuilder decoratorName = new StringBuilder();
         for (int i = 0; i < ctx.dotted_name().NAME().size(); i++) {
             if (i > 0) decoratorName.append(".");
@@ -120,7 +116,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         DecoratorNode decoratorNode = new DecoratorNode(line);
         decoratorNode.addChild(new NameNode(decoratorName.toString(), line));
 
-        // Handle decorator arguments
         if (ctx.arglist() != null) {
             if (ctx.arglist().argument() != null) {
                 for (ArgumentContext arg : ctx.arglist().argument()) {
@@ -230,7 +225,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
         ImportNode importNode = new ImportNode(line);
 
-        // Build module name
         StringBuilder moduleName = new StringBuilder();
         for (int i = 0; i < ctx.dotted_name().NAME().size(); i++) {
             if (i > 0) moduleName.append(".");
@@ -238,7 +232,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         }
         importNode.addChild(new NameNode(moduleName.toString(), line));
 
-        // Handle alias
         if (ctx.AS() != null) {
             importNode.addChild(new NameNode(ctx.NAME().getText(), line));
         }
@@ -251,7 +244,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
         FromImportNode fromImportNode = new FromImportNode(line);
 
-        // Build module name
         StringBuilder moduleName = new StringBuilder();
         for (int i = 0; i < ctx.dotted_name().NAME().size(); i++) {
             if (i > 0) moduleName.append(".");
@@ -259,7 +251,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         }
         fromImportNode.addChild(new NameNode(moduleName.toString(), line));
 
-        // Handle imports
         if (ctx.STAR() != null) {
             fromImportNode.addChild(new NameNode("*", line));
         } else if (ctx.import_as_names() != null) {
@@ -419,7 +410,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
     @Override
     public AstNode visitFactor(FactorContext ctx) {
         if (ctx.factor() != null) {
-            // Unary plus or minus
             int line = ctx.getStart().getLine();
             String op = ctx.PLUS() != null ? "+" : "-";
             UnaryOpNode unaryNode = new UnaryOpNode(op, line);
@@ -437,7 +427,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         AstNode base = visit(ctx.atom_expr());
 
         if (ctx.factor() != null) {
-            // Power operation: base ** exponent
             int line = ctx.getStart().getLine();
             BinOpNode powerNode = new BinOpNode("**", line);
             powerNode.addChild(base);
@@ -505,33 +494,27 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
 
         if (ctx.testlist_comp() == null) {
-            // Empty parentheses - empty tuple
             return new TupleNode(line);
         }
 
         Testlist_compContext testlistComp = ctx.testlist_comp();
 
-        // Check if it's a generator expression
         if (testlistComp.comp_for() != null) {
             GeneratorExprNode genNode = new GeneratorExprNode(line);
 
-            // Expression being generated
             AstNode expr = visit(testlistComp.test(0));
             if (expr != null) {
                 genNode.addChild(expr);
             }
 
-            // Loop variable
             Comp_forContext compFor = testlistComp.comp_for();
             genNode.addChild(new NameNode(compFor.NAME().getText(), line));
 
-            // Iterable
             AstNode iter = visit(compFor.or_test(0));
             if (iter != null) {
                 genNode.addChild(iter);
             }
 
-            // Condition (if present)
             if (compFor.IF() != null && compFor.or_test().size() > 1) {
                 AstNode cond = visit(compFor.or_test(1));
                 if (cond != null) {
@@ -542,13 +525,10 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
             return genNode;
         }
 
-        // Regular parenthesized expression or tuple
         if (testlistComp.test().size() == 1 && testlistComp.COMMA().isEmpty()) {
-            // Single expression without comma - just parentheses for grouping
             return visit(testlistComp.test(0));
         }
 
-        // Tuple
         TupleNode tupleNode = new TupleNode(line);
         for (TestContext test : testlistComp.test()) {
             AstNode elem = visit(test);
@@ -564,33 +544,27 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
 
         if (ctx.testlist_comp() == null) {
-            // Empty list
             return new ListNode(line);
         }
 
         Testlist_compContext testlistComp = ctx.testlist_comp();
 
-        // Check if it's a list comprehension
         if (testlistComp.comp_for() != null) {
             ListCompNode compNode = new ListCompNode(line);
 
-            // Expression
             AstNode expr = visit(testlistComp.test(0));
             if (expr != null) {
                 compNode.addChild(expr);
             }
 
-            // Loop var
             Comp_forContext compFor = testlistComp.comp_for();
             compNode.addChild(new NameNode(compFor.NAME().getText(), line));
 
-            // Iterable
             AstNode iter = visit(compFor.or_test(0));
             if (iter != null) {
                 compNode.addChild(iter);
             }
 
-            // Condition if exists
             if (compFor.IF() != null && compFor.or_test().size() > 1) {
                 AstNode cond = visit(compFor.or_test(1));
                 if (cond != null) {
@@ -601,7 +575,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
             return compNode;
         }
 
-        // Regular list
         ListNode listNode = new ListNode(line);
 
         for (TestContext test : testlistComp.test()) {
@@ -621,7 +594,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
 
         if (ctx.dictorsetmaker() != null && ctx.dictorsetmaker().dict_item() != null) {
             for (Dict_itemContext item : ctx.dictorsetmaker().dict_item()) {
-                // Key
                 if (item.STRING() != null) {
                     String key = item.STRING().getText();
                     key = key.substring(1, key.length() - 1);
@@ -630,7 +602,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
                     dictNode.addChild(new NameNode(item.NAME().getText(), line));
                 }
 
-                // Value
                 AstNode value = visit(item.test());
                 if (value != null) {
                     dictNode.addChild(value);
@@ -677,7 +648,6 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
                 current = callNode;
 
             } else if (trailer instanceof GenExprTrailerContext) {
-                // Handle: func(x for x in y if z)
                 CallNode callNode = new CallNode(line);
                 callNode.addChild(current);
 
@@ -718,25 +688,20 @@ public class PythonAstBuilder extends PythonSubsetParserBaseVisitor<AstNode> {
 
         GeneratorExprNode genNode = new GeneratorExprNode(line);
 
-        // Expression being generated
         AstNode expr = visit(ctx.test());
         if (expr != null) {
             genNode.addChild(expr);
         }
 
-        // Comprehension clause
         Comp_forContext compFor = ctx.comp_for();
 
-        // Loop variable
         genNode.addChild(new NameNode(compFor.NAME().getText(), line));
 
-        // Iterable
         AstNode iter = visit(compFor.or_test(0));
         if (iter != null) {
             genNode.addChild(iter);
         }
 
-        // Condition (if present)
         if (compFor.IF() != null && compFor.or_test().size() > 1) {
             AstNode cond = visit(compFor.or_test(1));
             if (cond != null) {

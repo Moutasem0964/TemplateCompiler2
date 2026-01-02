@@ -1,9 +1,5 @@
 package compiler.symbol;
 
-/**
- * Represents a symbol in the symbol table
- * Contains: name, type, line number, and optional value
- */
 public class Symbol {
     private final String name;
     private final String type;

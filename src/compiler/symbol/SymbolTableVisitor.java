@@ -39,14 +39,12 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
             }
         }
 
-        // Print child scopes
         for (Scope child : scope.getChildren()) {
             System.out.println();
             printScope(child, indent + 1);
         }
     }
 
-    // Helper method to visit all children
     private void visitChildren(AstNode node) {
         for (AstNode child : node.getChildren()) {
             child.accept(this);
@@ -65,33 +63,27 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
 
     @Override
     public Void visitDef(DefNode node) {
-        // Define function in current scope
         Symbol funcSymbol = new Symbol(node.getName(), "function", node.getLine());
         currentScope.define(funcSymbol);
 
-        // Create new scope for function
         Scope funcScope = new Scope(node.getName(), currentScope);
         currentScope.addChild(funcScope);
         Scope previousScope = currentScope;
         currentScope = funcScope;
 
-        // Define parameters in function scope
         for (String param : node.getParams()) {
             Symbol paramSymbol = new Symbol(param, "parameter", node.getLine());
             currentScope.define(paramSymbol);
         }
 
-        // Visit function body
         visitChildren(node);
 
-        // Return to previous scope
         currentScope = previousScope;
         return null;
     }
 
     @Override
     public Void visitAssign(AssignNode node) {
-        // First child is the target (NameNode), second is the value
         if (!node.getChildren().isEmpty()) {
             AstNode target = node.getChildren().get(0);
             if (target instanceof NameNode) {
@@ -100,7 +92,6 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
                 currentScope.define(varSymbol);
             }
 
-            // Visit value expression to collect any names
             if (node.getChildren().size() > 1) {
                 node.getChildren().get(1).accept(this);
             }
@@ -110,11 +101,9 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
 
     @Override
     public Void visitFor(ForNode node) {
-        // Define loop variable in current scope
         Symbol loopVar = new Symbol(node.getVarName(), "loop_variable", node.getLine());
         currentScope.define(loopVar);
 
-        // Visit children (iterable and body)
         visitChildren(node);
         return null;
     }
@@ -133,8 +122,6 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
 
     @Override
     public Void visitGlobal(GlobalNode node) {
-        // Global statement declares that variables are from global scope
-        // Mark them as global references
         for (AstNode child : node.getChildren()) {
             if (child instanceof NameNode) {
                 String varName = ((NameNode) child).getName();
@@ -147,12 +134,10 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
 
     @Override
     public Void visitImport(ImportNode node) {
-        // Import adds the module name to current scope
         if (!node.getChildren().isEmpty()) {
             AstNode moduleNameNode = node.getChildren().get(0);
             if (moduleNameNode instanceof NameNode) {
                 String moduleName = ((NameNode) moduleNameNode).getName();
-                // If there's an alias, use that instead
                 if (node.getChildren().size() > 1) {
                     AstNode aliasNode = node.getChildren().get(1);
                     if (aliasNode instanceof NameNode) {
@@ -168,8 +153,6 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
 
     @Override
     public Void visitFromImport(FromImportNode node) {
-        // From import adds the imported names to current scope
-        // First child is module, rest are imported names
         for (int i = 1; i < node.getChildren().size(); i++) {
             AstNode nameNode = node.getChildren().get(i);
             if (nameNode instanceof NameNode) {
@@ -197,12 +180,7 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
 
     @Override
     public Void visitName(NameNode node) {
-        // Check if this name is defined (optional: report undefined references)
         Symbol symbol = currentScope.resolve(node.getName());
-        if (symbol == null) {
-            // This is a reference to an undefined variable
-            // Could be a builtin or external reference
-        }
         return null;
     }
 
@@ -262,13 +240,10 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
 
     @Override
     public Void visitListComp(ListCompNode node) {
-        // List comprehension has its own scope for the loop variable
-        // Children: expression, loop_var, iterable, [condition]
+
         if (node.getChildren().size() >= 3) {
-            // Visit iterable first (in outer scope)
             node.getChildren().get(2).accept(this);
 
-            // Define comprehension variable
             AstNode loopVarNode = node.getChildren().get(1);
             if (loopVarNode instanceof NameNode) {
                 String varName = ((NameNode) loopVarNode).getName();
@@ -276,10 +251,8 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
                 currentScope.define(compVar);
             }
 
-            // Visit expression
             node.getChildren().get(0).accept(this);
 
-            // Visit condition if present
             if (node.getChildren().size() > 3) {
                 node.getChildren().get(3).accept(this);
             }
@@ -289,12 +262,9 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
 
     @Override
     public Void visitGeneratorExpr(GeneratorExprNode node) {
-        // Generator expression similar to list comprehension
         if (node.getChildren().size() >= 3) {
-            // Visit iterable first
             node.getChildren().get(2).accept(this);
 
-            // Define generator variable
             AstNode loopVarNode = node.getChildren().get(1);
             if (loopVarNode instanceof NameNode) {
                 String varName = ((NameNode) loopVarNode).getName();
@@ -302,10 +272,8 @@ public class SymbolTableVisitor implements AstVisitor<Void> {
                 currentScope.define(genVar);
             }
 
-            // Visit expression
             node.getChildren().get(0).accept(this);
 
-            // Visit condition if present
             if (node.getChildren().size() > 3) {
                 node.getChildren().get(3).accept(this);
             }

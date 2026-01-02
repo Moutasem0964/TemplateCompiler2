@@ -13,16 +13,12 @@ public class PythonIndentingLexer implements TokenSource {
     private final Queue<Token> tokenQueue = new LinkedList<>();
     private final Stack<Integer> indentStack = new Stack<>();
 
-    // Track bracket depth - ignore newlines inside brackets
     private int bracketDepth = 0;
 
-    // Track if we need to check indentation on next real token
     private boolean checkIndentNext = false;
 
-    // Track the last newline token for position info
     private Token lastNewlineToken = null;
 
-    // Track if we just emitted a NEWLINE (to skip consecutive ones)
     private boolean lastWasNewline = false;
 
     public PythonIndentingLexer(PythonSubsetLexer lexer) {
@@ -32,7 +28,6 @@ public class PythonIndentingLexer implements TokenSource {
 
     @Override
     public Token nextToken() {
-        // Return queued tokens first
         if (!tokenQueue.isEmpty()) {
             Token t = tokenQueue.poll();
             lastWasNewline = (t.getType() == PythonSubsetLexer.NEWLINE);
@@ -43,12 +38,10 @@ public class PythonIndentingLexer implements TokenSource {
             Token token = lexer.nextToken();
             int type = token.getType();
 
-            // Skip hidden channel tokens (whitespace)
             if (token.getChannel() == Lexer.HIDDEN) {
                 continue;
             }
 
-            // Track bracket depth for implicit line continuation
             if (type == PythonSubsetLexer.LPAREN ||
                     type == PythonSubsetLexer.LBRACK ||
                     type == PythonSubsetLexer.LBRACE) {
@@ -59,16 +52,13 @@ public class PythonIndentingLexer implements TokenSource {
                 if (bracketDepth > 0) bracketDepth--;
             }
 
-            // Skip newlines inside brackets (implicit line continuation)
             if (type == PythonSubsetLexer.NEWLINE && bracketDepth > 0) {
                 continue;
             }
 
-            // Handle NEWLINE
             if (type == PythonSubsetLexer.NEWLINE) {
-                // Skip consecutive newlines - only emit one
                 if (lastWasNewline) {
-                    continue; // Skip this newline, keep looking
+                    continue;
                 }
 
                 checkIndentNext = true;
@@ -77,7 +67,6 @@ public class PythonIndentingLexer implements TokenSource {
                 return token;
             }
 
-            // Handle EOF - emit all remaining DEDENTs
             if (type == PythonSubsetLexer.EOF) {
                 while (indentStack.size() > 1) {
                     indentStack.pop();
@@ -88,7 +77,6 @@ public class PythonIndentingLexer implements TokenSource {
                 return tokenQueue.poll();
             }
 
-            // Check indentation after newline
             if (checkIndentNext) {
                 checkIndentNext = false;
 
@@ -96,7 +84,6 @@ public class PythonIndentingLexer implements TokenSource {
                 int previousIndent = indentStack.peek();
 
                 if (currentIndent > previousIndent) {
-                    // Emit INDENT, then the token
                     indentStack.push(currentIndent);
                     tokenQueue.add(token);
                     lastWasNewline = false;
@@ -104,7 +91,6 @@ public class PythonIndentingLexer implements TokenSource {
                             lastNewlineToken != null ? lastNewlineToken : token);
 
                 } else if (currentIndent < previousIndent) {
-                    // Emit DEDENT(s), then the token
                     while (indentStack.size() > 1 && indentStack.peek() > currentIndent) {
                         indentStack.pop();
                         tokenQueue.add(createToken(PythonSubsetLexer.DEDENT, "<<<DEDENT>>>",

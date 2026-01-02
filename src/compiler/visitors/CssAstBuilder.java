@@ -26,12 +26,10 @@ public class CssAstBuilder extends CSSParserBaseVisitor<AstNode> {
     public AstNode visitStyleRule(StyleRuleContext ctx) {
         int line = ctx.getStart().getLine();
 
-        // Build selector string
         String selector = buildSelectorString(ctx.selector_group());
 
         CssRuleNode ruleNode = new CssRuleNode(selector, line);
 
-        // Add declarations
         for (DeclarationContext decl : ctx.declaration()) {
             AstNode declNode = visit(decl);
             if (declNode != null) {
@@ -63,7 +61,6 @@ public class CssAstBuilder extends CSSParserBaseVisitor<AstNode> {
 
         CssRuleNode mediaNode = new CssRuleNode(mediaQuery, line);
 
-        // Add nested rules
         for (CssRuleContext rule : ctx.cssRule()) {
             AstNode ruleNode = visit(rule);
             if (ruleNode != null) {

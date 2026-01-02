@@ -72,20 +72,17 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
     public AstNode visitNormalElement(NormalElementContext ctx) {
         int line = ctx.getStart().getLine();
 
-        // Extract tag name from HTML_OPEN token
         String openTag = ctx.HTML_OPEN().getText();
         String tagName = openTag.substring(1).trim(); // Remove '<'
 
         HtmlElementNode htmlNode = new HtmlElementNode(tagName, line);
 
-        // Add attributes
         if (ctx.attribute() != null) {
             for (AttributeContext attr : ctx.attribute()) {
                 addAttribute(htmlNode, attr);
             }
         }
 
-        // Add children content
         if (ctx.content() != null) {
             for (ContentContext content : ctx.content()) {
                 AstNode child = visit(content);
@@ -102,13 +99,11 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
     public AstNode visitSelfClosingElement(SelfClosingElementContext ctx) {
         int line = ctx.getStart().getLine();
 
-        // Extract tag name from HTML_OPEN token
         String openTag = ctx.HTML_OPEN().getText();
         String tagName = openTag.substring(1).trim(); // Remove '<'
 
         HtmlElementNode htmlNode = new HtmlElementNode(tagName, line);
 
-        // Add attributes
         if (ctx.attribute() != null) {
             for (AttributeContext attr : ctx.attribute()) {
                 addAttribute(htmlNode, attr);
@@ -123,22 +118,16 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
             StaticAttributeContext staticAttr = (StaticAttributeContext) ctx;
             String name = staticAttr.TAG_NAME().getText();
             String value = staticAttr.TAG_VALUE().getText();
-            // Remove quotes from value
             value = value.substring(1, value.length() - 1);
             htmlNode.addAttribute(name, value);
         } else if (ctx instanceof DynamicAttributeContext) {
             DynamicAttributeContext dynamicAttr = (DynamicAttributeContext) ctx;
             String name = dynamicAttr.TAG_NAME().getText();
 
-            // For dynamic attributes, we'll store the jinja expression as a string
-            // Visit the jinja expression to get its AST representation
             AstNode jinjaExpr = visit(dynamicAttr.jinja_expr());
 
-            // Store as a placeholder - in a real implementation you might want to
-            // create a special node type for dynamic attributes
             htmlNode.addAttribute(name, "{{ dynamic }}");
 
-            // Add the jinja expression as a child if you want to preserve the AST
             if (jinjaExpr != null) {
                 htmlNode.addChild(jinjaExpr);
             }
@@ -161,13 +150,11 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
         JinjaExprNode jinjaExpr = new JinjaExprNode(line);
 
-        // Add the expression (singular)
         AstNode expr = visit(ctx.jinja_expr());
         if (expr != null) {
             jinjaExpr.addChild(expr);
         }
 
-        // Handle filters (PIPE JINJA_NAME)
         if (ctx.JINJA_NAME() != null) {
             for (int i = 0; i < ctx.JINJA_NAME().size(); i++) {
                 String filterName = ctx.JINJA_NAME(i).getText();
@@ -186,18 +173,15 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
         JinjaStmtNode forNode = new JinjaStmtNode(line);
 
-        // Add loop variable name
         String varName = ctx.JINJA_NAME().getText();
         NameNode varNode = new NameNode(varName, line);
         forNode.addChild(varNode);
 
-        // Add iterable expression
         AstNode iterable = visit(ctx.jinja_expr());
         if (iterable != null) {
             forNode.addChild(iterable);
         }
 
-        // Add body content
         if (ctx.content() != null) {
             for (ContentContext content : ctx.content()) {
                 AstNode contentNode = visit(content);
@@ -217,24 +201,20 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
         JinjaStmtNode ifNode = new JinjaStmtNode(line);
 
-        // Add main if condition
         AstNode condition = visit(ctx.jinja_expr(0));
         if (condition != null) {
             ifNode.addChild(condition);
         }
 
-        // Add main if body
         int contentIndex = 0;
         int exprIndex = 1;
 
-        // Count how many content blocks are in the main if
         int mainIfContentCount = 0;
         for (int i = 0; i < ctx.content().size(); i++) {
             if (ctx.ELIF().isEmpty() && ctx.ELSE() == null) {
                 mainIfContentCount = ctx.content().size();
                 break;
             }
-            // This is a simplified approach - you may need to adjust based on your grammar
             if (!ctx.ELIF().isEmpty() && i < ctx.content().size() / (ctx.ELIF().size() + 1)) {
                 mainIfContentCount++;
             } else {
@@ -249,24 +229,19 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
             }
         }
 
-        // Add elif blocks
         for (int i = 0; i < ctx.ELIF().size(); i++) {
-            // Add elif condition
             AstNode elifCondition = visit(ctx.jinja_expr(exprIndex++));
             if (elifCondition != null) {
                 ifNode.addChild(elifCondition);
             }
 
-            // Add elif body (this is simplified)
             AstNode elifContent = visit(ctx.content(contentIndex++));
             if (elifContent != null) {
                 ifNode.addChild(elifContent);
             }
         }
 
-        // Add else block
         if (ctx.ELSE() != null) {
-            // Add remaining content
             while (contentIndex < ctx.content().size()) {
                 AstNode elseContent = visit(ctx.content(contentIndex++));
                 if (elseContent != null) {
@@ -290,7 +265,6 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
     public AstNode visitJinjaString(JinjaStringContext ctx) {
         int line = ctx.getStart().getLine();
         String text = ctx.JINJA_STRING().getText();
-        // Remove quotes
         text = text.substring(1, text.length() - 1);
         return new StringNode(text, line);
     }
@@ -306,13 +280,11 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
         AttrAccessNode attrNode = new AttrAccessNode(line);
 
-        // Add object
         AstNode obj = visit(ctx.jinja_expr());
         if (obj != null) {
             attrNode.addChild(obj);
         }
 
-        // Add attribute name
         NameNode attr = new NameNode(ctx.JINJA_NAME().getText(), line);
         attrNode.addChild(attr);
 
@@ -329,13 +301,11 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
             }
         };
 
-        // Add object
         AstNode obj = visit(ctx.jinja_expr(0));
         if (obj != null) {
             subscriptNode.addChild(obj);
         }
 
-        // Add index
         AstNode index = visit(ctx.jinja_expr(1));
         if (index != null) {
             subscriptNode.addChild(index);
@@ -349,11 +319,9 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
         int line = ctx.getStart().getLine();
         CallNode callNode = new CallNode(line);
 
-        // Add function name
         NameNode funcName = new NameNode(ctx.JINJA_NAME().getText(), line);
         callNode.addChild(funcName);
 
-        // Add arguments
         if (ctx.jinja_args() != null) {
             for (Jinja_argContext arg : ctx.jinja_args().jinja_arg()) {
                 if (arg instanceof JinjaPositionalArgContext) {
@@ -364,7 +332,6 @@ public class TemplateAstBuilder extends TemplateParserBaseVisitor<AstNode> {
                     }
                 } else if (arg instanceof JinjaKeywordArgContext) {
                     JinjaKeywordArgContext kwArg = (JinjaKeywordArgContext) arg;
-                    // Create a node representing keyword argument
                     AstNode kwNode = new AstNode("KeywordArg", line) {
                         @Override
                         public <R> R accept(compiler.ast.visitors.AstVisitor<R> visitor) {
